@@ -1,5 +1,7 @@
 package config
 
+import "time"
+
 // Configurations exported
 type Configurations struct {
 	Server   ServerConfigurations
@@ -19,12 +21,18 @@ type Matchers struct {
 
 type Request struct {
 	Path    string
+	Method  string
 	Headers map[string]string
 }
 
 type Response struct {
-	//Type    string
 	Body       string
 	StatusCode int
 	Headers    map[string]string
+	Latency    *LatencyConfig
+}
+
+type LatencyConfig struct {
+	Type  string
+	Delay time.Duration
 }

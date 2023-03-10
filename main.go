@@ -6,9 +6,16 @@ import (
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"math/rand"
 	"net/http"
 	"os"
 	"time"
+)
+
+var (
+	seed = func() int64 {
+		return time.Now().UnixNano()
+	}
 )
 
 type Matcher struct {
@@ -23,9 +30,6 @@ func init() {
 
 	// Only log the warning severity or above.
 	log.SetLevel(log.TraceLevel)
-}
-
-func main() {
 	// Set the file name of the configurations file
 	viper.SetConfigName("config.yml")
 
@@ -36,6 +40,11 @@ func main() {
 	viper.AutomaticEnv()
 
 	viper.SetConfigType("yml")
+
+}
+
+func main() {
+
 	var c config.Configurations
 
 	err := viper.ReadInConfig()
@@ -48,7 +57,7 @@ func main() {
 
 	// handle http first
 	// process all http requests and parse by url
-	// we need to create a map with all of the possible responses matched to each request.
+	// we need to create a map with all the possible responses matched to each request.
 	matchers := make(map[string][]Matcher)
 	for _, m := range c.Matchers {
 		mtchr := Matcher{
@@ -64,6 +73,9 @@ func main() {
 
 			var m *Matcher
 			for _, r := range matcher {
+				if r.Request.Method != incoming.Method {
+					continue
+				}
 				// Does each header match?
 				if !contains(r.Request.Headers, incoming.Header) {
 					continue
@@ -75,7 +87,21 @@ func main() {
 			}
 
 			if m != nil {
-				//TODO Add latency
+				if m.Response.Latency != nil {
+					switch m.Response.Latency.Type {
+					case "random":
+						rand.Seed(seed())
+						max := m.Response.Latency.Delay.Nanoseconds()
+
+						s := rand.Intn(int(max))
+						time.Sleep(time.Duration(s) * time.Nanosecond)
+
+					case "simple":
+						time.Sleep(m.Response.Latency.Delay)
+					default:
+						//none
+					}
+				}
 				//Everything passed; return value
 				for k, v := range m.Response.Headers {
 					log.Debugf("key: %s, value: %s", k, v)
@@ -88,6 +114,7 @@ func main() {
 				if err != nil {
 					return
 				}
+				return
 			}
 			w.WriteHeader(http.StatusNotFound)
 
