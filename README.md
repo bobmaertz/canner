@@ -1,16 +1,16 @@
 # canner
-Canner is a server that provides configurable mock responses
+Canner is a server that provides configurable mock responses for http endpoints
 
 
 ## Building 
 ```shell
-go build 
+make build 
 ```
 
 ## Running 
 
-- Create a config.yml in the conf directory 
-```sh
+1. Create a config.yml in the conf directory 
+```yaml
 server:
   port: 8450
 
@@ -25,4 +25,8 @@ matchers:
      headers:
        Content-Type: "text/plain; charset=utf-8"
        
+```
+2. Run
+```shell 
+make run  
 ```
