@@ -23,6 +23,7 @@ type Request struct {
 	Path    string
 	Method  string
 	Headers map[string]string
+	Body    string
 }
 
 type Response struct {
