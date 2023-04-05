@@ -65,81 +65,12 @@ func main() {
 	// process all http requests and parse by url
 	// we need to create a map with all the possible responses matched to each request.
 
-	matchers := make(map[string][]Matcher)
-	for _, m := range c.Matchers {
-		mtchr := Matcher{
-			Request:  m.Request,
-			Response: m.Response,
-		}
-		matchers[m.Request.Path] = append(matchers[m.Request.Path], mtchr)
-	}
+	matchers := createMatchers(c)
 
-	//TODO: refactor into functions
 	for path, matcher := range matchers {
-		rtr.HandleFunc(path, func(w http.ResponseWriter, incoming *http.Request) {
-			log.Debugf("Request Log: %v", incoming)
-
-			var m *Matcher
-			for _, r := range matcher {
-				if r.Request.Method != incoming.Method {
-					continue
-				}
-				// Does each header match?
-				if !contains(r.Request.Headers, incoming.Header) {
-					continue
-				}
-
-				// TODO conditions for body
-				// Config body is set and incoming body is set
-				// check if equal - match is true since they are equal
-				// config body is not set and incoming body is set
-				// match is false
-				// config body is set and incoming body is not set
-				// match is false
-				// config body is not set and incoming body is not set
-				// match is true
-				if r.Request.Body != "" {
-					body, err := io.ReadAll(incoming.Body)
-					if err != nil {
-						log.Errorf("Error reading body: %v", err)
-						w.WriteHeader(http.StatusInternalServerError)
-						return
-					}
-					if string(body) != r.Request.Body {
-						continue
-					}
-				}
-
-				//Set floating matcher var to the matcher we found
-				m = &r
-			}
-
-			if m != nil {
-				if m.Response.Latency != nil {
-					waitFor(*m.Response.Latency, time.Sleep)
-				}
-				//Everything passed; return value
-				for k, v := range m.Response.Headers {
-					log.Debugf("key: %s, value: %s", k, v)
-					w.Header().Add(k, v)
-				}
-
-				w.WriteHeader(m.Response.StatusCode)
-
-				_, err := w.Write([]byte(m.Response.Body))
-				if err != nil {
-					return
-				}
-				return
-			}
-			w.WriteHeader(http.StatusNotFound)
-
-			_, err := w.Write([]byte("mock not found"))
-			if err != nil {
-				return
-			}
-		})
+		rtr.HandleFunc(path, createHandler(matcher))
 	}
+
 	http.Handle("/", rtr)
 
 	log.Infof("Listening on %d\n", c.Server.Port)
@@ -152,6 +83,59 @@ func main() {
 	}
 
 	log.Fatal(srv.ListenAndServe())
+}
+
+func createHandler(matchers []Matcher) func(w http.ResponseWriter, incoming *http.Request) {
+
+	return func(w http.ResponseWriter, incoming *http.Request) {
+		log.Debugf("Request Log: %v", incoming)
+
+		var m *Matcher
+		for _, r := range matchers {
+			if r.Request.Method != incoming.Method {
+				fmt.Println("method does not match")
+				continue
+			}
+
+			if !headersMatch(r.Request.Headers, incoming.Header) {
+				fmt.Println("header does not match")
+				continue
+			}
+
+			if !bodyMatches(r.Request.Body, incoming.Body) {
+				fmt.Println("body does not match")
+				continue
+			}
+
+			//Set floating matcher var to the matcher we found
+			m = &r
+		}
+
+		if m != nil {
+			if m.Response.Latency != nil {
+				waitFor(*m.Response.Latency, time.Sleep)
+			}
+			//Everything passed; return value
+			for k, v := range m.Response.Headers {
+				log.Debugf("key: %s, value: %s", k, v)
+				w.Header().Add(k, v)
+			}
+
+			w.WriteHeader(m.Response.StatusCode)
+
+			_, err := w.Write([]byte(m.Response.Body))
+			if err != nil {
+				return
+			}
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+
+		_, err := w.Write([]byte("mock not found"))
+		if err != nil {
+			return
+		}
+	}
 }
 
 func waitFor(latency config.LatencyConfig, sleep func(time.Duration)) {
@@ -170,7 +154,7 @@ func waitFor(latency config.LatencyConfig, sleep func(time.Duration)) {
 	}
 }
 
-func contains(reqd map[string]string, hdrs http.Header) bool {
+func headersMatch(reqd map[string]string, hdrs http.Header) bool {
 	for k, v := range reqd {
 		val := hdrs.Get(k)
 		if val == v {
@@ -178,4 +162,28 @@ func contains(reqd map[string]string, hdrs http.Header) bool {
 		}
 	}
 	return false
+}
+
+func bodyMatches(reqBody string, incomingBody io.ReadCloser) bool {
+	body, err := io.ReadAll(incomingBody)
+	if err != nil {
+		log.Errorf("Error reading body: %v", err)
+		return false
+	}
+	if string(body) == reqBody {
+		return true
+	}
+	return false
+}
+
+func createMatchers(c config.Configurations) map[string][]Matcher {
+	matchers := make(map[string][]Matcher)
+	for _, m := range c.Matchers {
+		mtchr := Matcher{
+			Request:  m.Request,
+			Response: m.Response,
+		}
+		matchers[m.Request.Path] = append(matchers[m.Request.Path], mtchr)
+	}
+	return matchers
 }
