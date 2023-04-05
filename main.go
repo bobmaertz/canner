@@ -2,14 +2,16 @@ package main
 
 import (
 	"fmt"
-	"github.com/bobmaertz/canner/config"
-	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
+	"io"
 	"math/rand"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/bobmaertz/canner/config"
+	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -49,15 +51,20 @@ func main() {
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		return
+		log.Fatalf("Error reading config file, %s", err)
 	}
+
 	err = viper.Unmarshal(&c)
+	if err != nil {
+		log.Fatalf("unable to decode into struct, %v", err)
+	}
 
 	rtr := mux.NewRouter()
 
 	// handle http first
 	// process all http requests and parse by url
 	// we need to create a map with all the possible responses matched to each request.
+
 	matchers := make(map[string][]Matcher)
 	for _, m := range c.Matchers {
 		mtchr := Matcher{
@@ -67,6 +74,7 @@ func main() {
 		matchers[m.Request.Path] = append(matchers[m.Request.Path], mtchr)
 	}
 
+	//TODO: refactor into functions
 	for path, matcher := range matchers {
 		rtr.HandleFunc(path, func(w http.ResponseWriter, incoming *http.Request) {
 			log.Debugf("Request Log: %v", incoming)
@@ -81,26 +89,34 @@ func main() {
 					continue
 				}
 
-				//TODO: does the body match?
+				// TODO conditions for body
+				// Config body is set and incoming body is set
+				// check if equal - match is true since they are equal
+				// config body is not set and incoming body is set
+				// match is false
+				// config body is set and incoming body is not set
+				// match is false
+				// config body is not set and incoming body is not set
+				// match is true
+				if r.Request.Body != "" {
+					body, err := io.ReadAll(incoming.Body)
+					if err != nil {
+						log.Errorf("Error reading body: %v", err)
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+					if string(body) != r.Request.Body {
+						continue
+					}
+				}
+
 				//Set floating matcher var to the matcher we found
 				m = &r
 			}
 
 			if m != nil {
 				if m.Response.Latency != nil {
-					switch m.Response.Latency.Type {
-					case "random":
-						rand.Seed(seed())
-						max := m.Response.Latency.Delay.Nanoseconds()
-
-						s := rand.Intn(int(max))
-						time.Sleep(time.Duration(s) * time.Nanosecond)
-
-					case "simple":
-						time.Sleep(m.Response.Latency.Delay)
-					default:
-						//none
-					}
+					waitFor(*m.Response.Latency, time.Sleep)
 				}
 				//Everything passed; return value
 				for k, v := range m.Response.Headers {
@@ -130,12 +146,28 @@ func main() {
 	srv := &http.Server{
 		Handler: rtr,
 		Addr:    fmt.Sprintf("localhost:%d", c.Server.Port),
-		//TODO: Add timeout options
+
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
 
 	log.Fatal(srv.ListenAndServe())
+}
+
+func waitFor(latency config.LatencyConfig, sleep func(time.Duration)) {
+	switch latency.Type {
+	case "random":
+		rand.Seed(seed())
+		max := latency.Delay.Nanoseconds()
+
+		s := rand.Intn(int(max))
+		sleep(time.Duration(s) * time.Nanosecond)
+
+	case "simple":
+		sleep(latency.Delay)
+	default:
+		//none
+	}
 }
 
 func contains(reqd map[string]string, hdrs http.Header) bool {
