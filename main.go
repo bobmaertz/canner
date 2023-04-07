@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/bobmaertz/canner/config"
@@ -92,7 +93,7 @@ func createHandler(matchers []Matcher) func(w http.ResponseWriter, incoming *htt
 
 		var m *Matcher
 		for _, r := range matchers {
-			if r.Request.Method != incoming.Method {
+			if !methodMatches(r.Request.Method, incoming.Method) {
 				fmt.Println("method does not match")
 				continue
 			}
@@ -154,7 +155,21 @@ func waitFor(latency config.LatencyConfig, sleep func(time.Duration)) {
 	}
 }
 
+func methodMatches(reqd string, incoming string) bool {
+	if reqd == "" {
+		reqd = "GET" //default to GET
+	}
+
+	if reqd == strings.ToUpper(incoming) {
+		return true
+	}
+	return false
+}
+
 func headersMatch(reqd map[string]string, hdrs http.Header) bool {
+	if len(reqd) == 0 {
+		return true //no headers to match
+	}
 	for k, v := range reqd {
 		val := hdrs.Get(k)
 		if val == v {
@@ -165,6 +180,10 @@ func headersMatch(reqd map[string]string, hdrs http.Header) bool {
 }
 
 func bodyMatches(reqBody string, incomingBody io.ReadCloser) bool {
+	if reqBody == "" {
+		return true //no body to match
+	}
+
 	body, err := io.ReadAll(incomingBody)
 	if err != nil {
 		log.Errorf("Error reading body: %v", err)

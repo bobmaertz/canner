@@ -225,7 +225,7 @@ func Test_createHandler(t *testing.T) {
 			},
 		},
 		{
-			name: "writes the correct response for no mocks found due to header mismatch",
+			name: "writes the correct response for no mocks found due to method mismatch",
 			args: args{
 				matchers: []Matcher{
 					{
@@ -358,6 +358,72 @@ func Test_createMatchers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := createMatchers(tt.args.c); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("createMatchers() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_methodMatches(t *testing.T) {
+	type args struct {
+		reqd     string
+		incoming string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		//test that the function returns true when the methods match
+		{
+
+			name: "returns true when the methods match",
+			args: args{
+				reqd:     "GET",
+				incoming: "GET",
+			},
+			want: true,
+		},
+		//test that the function returns false when the methods dont match
+		{
+			name: "returns false when the methods dont match",
+			args: args{
+				reqd:     "GET",
+				incoming: "POST",
+			},
+			want: false,
+		},
+		//test that the function returns true when the methods match regardless of case
+		{
+			name: "returns true when the methods match regardless of case",
+			args: args{
+				reqd:     "GET",
+				incoming: "get",
+			},
+			want: true,
+		},
+		//test that the function returns true when the matcher method is not set and the incoming method is GET
+		{
+			name: "returns true when the matcher method is not set and the incoming method is GET",
+			args: args{
+				reqd:     "",
+				incoming: "GET",
+			},
+			want: true,
+		},
+		//test that the function returns false when the matcher method is not set and the incoming method is not GET
+		{
+			name: "returns false when the matcher method is not set and the incoming method is not GET",
+			args: args{
+				reqd:     "",
+				incoming: "POST",
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := methodMatches(tt.args.reqd, tt.args.incoming); got != tt.want {
+				t.Errorf("methodMatches() = %v, want %v", got, tt.want)
 			}
 		})
 	}
