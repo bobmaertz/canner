@@ -1,0 +1,15 @@
+server:
+  port: 8450
+
+matchers:
+  - request:
+      path: /hello/world
+    response:
+     body: 'hello'
+     statusCode: 200
+     headers:
+       Content-Type: "text/plain; charset=utf-8"
+     latency:
+       type: random
+       delay: 5s
+

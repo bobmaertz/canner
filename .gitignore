@@ -17,3 +17,6 @@
 conf/*
 .idea
 bin/
+
+.vscode
+dist/

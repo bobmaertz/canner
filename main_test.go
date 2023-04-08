@@ -12,7 +12,7 @@ import (
 	"github.com/bobmaertz/canner/config"
 )
 
-func Test_contains(t *testing.T) {
+func Test_headersMatch(t *testing.T) {
 	type args struct {
 		reqd map[string]string
 		hdrs http.Header
@@ -52,7 +52,7 @@ func Test_contains(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := headersMatch(tt.args.reqd, tt.args.hdrs); got != tt.want {
-				t.Errorf("contains() = %v, want %v", got, tt.want)
+				t.Errorf("headersMatch() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -312,7 +312,6 @@ func Test_createMatchers(t *testing.T) {
 		args args
 		want map[string][]Matcher
 	}{
-		// TODO: Add test cases.
 		// make sure that the function returns the correct matchers
 		{
 			name: "returns the correct matchers",
