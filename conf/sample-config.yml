@@ -10,6 +10,6 @@ matchers:
      headers:
        Content-Type: "text/plain; charset=utf-8"
      latency:
-       type: random
+       type: random #simple or random
        delay: 5s
 

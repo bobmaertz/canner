@@ -39,6 +39,10 @@ matchers:
 
 
 ### Run
+
+Before running, create a conf/ directory next to where canner will run and copy your config.yml there. 
+
+
 ```shell 
 make run  
  
