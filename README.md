@@ -12,6 +12,12 @@ Canner is a server that provides configurable mock http server written in go. Th
  - Supports matching body, method, and headers to serve up a response 
 
 # Getting Started
+
+## Installation 
+
+The easiest way to get started is to to `go get github.com/bobmaertz/canner` and create a configuration file.
+
+
 ## Building 
 ```shell
 make build 
@@ -19,7 +25,9 @@ make build
 
 ## Running 
 
-### Create a config.yml in the conf directory 
+Before running, create a conf/ directory next to where canner will run and copy your config.yml there. 
+
+Example Config file: 
 ```yaml
 server:
   port: 8450
@@ -37,11 +45,7 @@ matchers:
        Content-Type: "text/plain; charset=utf-8"
 ```
 
-
-### Run
-
-Before running, create a conf/ directory next to where canner will run and copy your config.yml there. 
-
+Running instructions 
 
 ```shell 
 make run  
