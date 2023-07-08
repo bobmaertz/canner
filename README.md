@@ -49,7 +49,6 @@ OR
 
 
 ## TODO / Coming Soon: 
-[ ] Support for config file location other than co-located conf/config.yml 
-[ ] Support for sample config generation based on a URL 
-[ ] Support for request/response capture 
-[ ] 
+- Support for config file location other than co-located conf/config.yml 
+- Support for sample config generation based on a URL
+- Support for request/response capture 
