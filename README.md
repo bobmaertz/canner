@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/bobmaertz/canner/blob/master/LICENSE.md)
 
 
-Canner is a server that provides configurable mock http server written in go. This server supports 
+Canner is a server that provides configurable mock http server written in go.
 
 
 # Features
