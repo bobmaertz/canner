@@ -11,6 +11,10 @@ type Configurations struct {
 // ServerConfigurations exported
 type ServerConfigurations struct {
 	Port int
+    ReadTimeout time.Duration
+    WriteTimeout time.Duration
+    IdleTimeout time.Duration
+    ReadHeaderTimeout time.Duration
 }
 
 // Matchers

@@ -8,13 +8,13 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/bobmaertz/canner/config"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"time"
 )
 
 var (
@@ -80,13 +80,36 @@ func main() {
 
 	http.Handle("/", rtr)
 
+	// Set default values for timeouts if not set by configs
+	readTimeout := 15 * time.Second
+	if c.Server.ReadTimeout != 0 {
+		readTimeout = c.Server.ReadTimeout
+	}
+
+	writeTimeout := 15 * time.Second
+	if c.Server.WriteTimeout != 0 {
+		writeTimeout = c.Server.WriteTimeout
+	}
+
+	idleTimeout := 60 * time.Second
+	if c.Server.IdleTimeout != 0 {
+		idleTimeout = c.Server.IdleTimeout
+	}
+
+	readHeaderTimeout := 15 * time.Second
+	if c.Server.ReadHeaderTimeout != 0 {
+		readHeaderTimeout = c.Server.ReadHeaderTimeout
+	}
+
 	log.Infof("Listening on %d\n", c.Server.Port)
 	srv := &http.Server{
 		Handler: rtr,
 		Addr:    fmt.Sprintf("localhost:%d", c.Server.Port),
 
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
+		WriteTimeout:      writeTimeout,
+		ReadTimeout:       readTimeout,
+		ReadHeaderTimeout: readHeaderTimeout,
+		IdleTimeout:       idleTimeout,
 	}
 
 	log.Fatal(srv.ListenAndServe())
