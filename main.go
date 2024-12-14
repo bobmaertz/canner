@@ -9,12 +9,13 @@ import (
 	"os"
 	"strings"
 
+	"time"
+
 	"github.com/bobmaertz/canner/config"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"time"
 )
 
 var (
