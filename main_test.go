@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -109,7 +107,7 @@ func Test_waitFor(t *testing.T) {
 func Test_bodyMatches(t *testing.T) {
 	type args struct {
 		reqBody      string
-		incomingBody io.ReadCloser
+		incomingBody string
 	}
 	tests := []struct {
 		name string
@@ -120,10 +118,8 @@ func Test_bodyMatches(t *testing.T) {
 		{
 			name: "bodies match",
 			args: args{
-				reqBody: "test",
-				incomingBody: io.NopCloser(
-					bytes.NewBuffer([]byte("test")),
-				),
+				reqBody:      "test",
+				incomingBody: "test",
 			},
 			want: true,
 		},
@@ -132,10 +128,8 @@ func Test_bodyMatches(t *testing.T) {
 		{
 			name: "bodies do not match",
 			args: args{
-				reqBody: "test",
-				incomingBody: io.NopCloser(
-					bytes.NewBuffer([]byte("test2")),
-				),
+				reqBody:      "test",
+				incomingBody: "test2",
 			},
 			want: false,
 		},
@@ -144,10 +138,8 @@ func Test_bodyMatches(t *testing.T) {
 		{
 			name: "bodies are empty",
 			args: args{
-				reqBody: "",
-				incomingBody: io.NopCloser(
-					bytes.NewBuffer([]byte("")),
-				),
+				reqBody:      "",
+				incomingBody: "",
 			},
 			want: true,
 		},
