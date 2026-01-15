@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -18,11 +17,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var (
-	seed = func() int64 {
-		return time.Now().UnixNano()
-	}
-)
 
 type Matcher struct {
 	Request  config.Request
@@ -122,12 +116,15 @@ func createHandler(matchers []Matcher) func(w http.ResponseWriter, incoming *htt
 		trace := uuid.New().String()
 		log.Infof("Request [id: %s]: %v", trace, incoming)
 
-		//Todo check hijack parameter
-		writer, err := OpenWriter(w)
+		// Read body once before matching to avoid consumption issues
+		bodyBytes, err := io.ReadAll(incoming.Body)
 		if err != nil {
-			log.Errorf("error creating writer: %v\n", err)
+			log.Errorf("error reading request body: %v\n", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+		bodyString := string(bodyBytes)
+
 		var m *Matcher
 		for _, r := range matchers {
 			if !methodMatches(r.Request.Method, incoming.Method) {
@@ -140,7 +137,7 @@ func createHandler(matchers []Matcher) func(w http.ResponseWriter, incoming *htt
 				continue
 			}
 
-			if !bodyMatches(r.Request.Body, incoming.Body) {
+			if !bodyMatches(r.Request.Body, bodyString) {
 				log.Error("body does not match")
 				continue
 			}
@@ -155,75 +152,32 @@ func createHandler(matchers []Matcher) func(w http.ResponseWriter, incoming *htt
 			}
 			//Everything passed; return value
 			for k, v := range m.Response.Headers {
-				writer.Header().Add(k, v)
+				w.Header().Add(k, v)
 			}
 
-			writer.WriteHeader(m.Response.StatusCode)
+			w.WriteHeader(m.Response.StatusCode)
 
-			_, err := writer.Write([]byte(m.Response.Body))
+			_, err := w.Write([]byte(m.Response.Body))
 			if err != nil {
+				log.Errorf("error writing response body: %v", err)
 				return
 			}
 			log.Infof("Response [id: %s]: %v", trace, m.Response)
 			return
 		}
-		writer.WriteHeader(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 
-		_, err = writer.Write([]byte("mock not found"))
+		_, err = w.Write([]byte("mock not found"))
 		if err != nil {
+			log.Errorf("error writing not found response: %v", err)
 			return
 		}
 	}
 }
 
-type ZombieWriter struct {
-	rawWriter http.ResponseWriter
-	hijacker  http.Hijacker
-}
-
-func OpenWriter(w http.ResponseWriter) (http.ResponseWriter, error) {
-
-	var hj http.Hijacker
-	if _, ok := w.(*ZombieWriter); ok {
-		hj, ok = w.(http.Hijacker)
-		if !ok {
-			return nil, errors.New("hijack not supported")
-		}
-	}
-	return &ZombieWriter{rawWriter: w, hijacker: hj}, nil
-}
-
-func (z *ZombieWriter) Header() http.Header {
-	return z.rawWriter.Header()
-}
-
-func (z *ZombieWriter) Write(in []byte) (int, error) {
-
-	//todo add hijack param
-	if z.hijacker != nil {
-		conn, _, err := z.hijacker.Hijack()
-		if err != nil {
-			return -100, err
-		}
-		defer conn.Close()
-
-		//TODO: hijack the connection and write the response
-
-		return 0, nil
-	}
-
-	// if not hijacked, continue as normal
-	return z.rawWriter.Write(in)
-}
-
-func (z *ZombieWriter) WriteHeader(header int) {
-	z.rawWriter.WriteHeader(header)
-}
-
 func waitFor(latency config.LatencyConfig, sleep func(time.Duration)) {
 	switch latency.Type {
 	case "random":
-		rand.Seed(seed())
 		max := latency.Delay.Nanoseconds()
 
 		s := rand.Intn(int(max))
@@ -241,7 +195,7 @@ func methodMatches(reqd string, incoming string) bool {
 		reqd = "GET" //default to GET
 	}
 
-	if reqd == strings.ToUpper(incoming) {
+	if strings.ToUpper(reqd) == strings.ToUpper(incoming) {
 		return true
 	}
 	return false
@@ -253,24 +207,19 @@ func headersMatch(reqd map[string]string, hdrs http.Header) bool {
 	}
 	for k, v := range reqd {
 		val := hdrs.Get(k)
-		if val == v {
-			return true
+		if val != v {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
-func bodyMatches(reqBody string, incomingBody io.ReadCloser) bool {
+func bodyMatches(reqBody string, incomingBody string) bool {
 	if reqBody == "" {
 		return true //no body to match
 	}
 
-	body, err := io.ReadAll(incomingBody)
-	if err != nil {
-		log.Errorf("Error reading body: %v", err)
-		return false
-	}
-	if string(body) == reqBody {
+	if incomingBody == reqBody {
 		return true
 	}
 	return false
